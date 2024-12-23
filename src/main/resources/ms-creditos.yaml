@@ -1,0 +1,429 @@
+openapi: 3.0.3
+info:
+  title: Credits service
+  description: API for management Credits.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8082
+    description: Local server
+
+paths:
+  /v1/credits:
+    get:
+      summary: List all credits
+      operationId: findAllCredits
+      responses:
+        '200':
+          description: List all credits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreditResponse'
+    post:
+      summary: Register new credit
+      operationId: insert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditRequest'
+      responses:
+        '201':
+          description: Credit created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/credits/{id_credit}:
+    get:
+      summary: Get credit by Id
+      operationId: findById
+      parameters:
+        - name: id_credit
+          in: path
+          required: true
+          description: ID of credit
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Return credit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditResponse'
+        '404':
+          description: Not found credit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update credit for Id
+      operationId: update
+      parameters:
+        - name: id_credit
+          in: path
+          required: true
+          description: ID of credit
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditRequest'
+      responses:
+        '200':
+          description: Credit updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found credit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete credit by Id
+      operationId: delete
+      parameters:
+        - name: id_credit
+          in: path
+          required: true
+          description: ID del credit
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Credit deleted
+        '404':
+          description: Not Found credit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/credits/{id_credit}/deposit:
+    post:
+      summary: Make a deposit to the credit
+      operationId: deposit
+      parameters:
+        - name: id_credit
+          in: path
+          required: true
+          description: ID of credit
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+      responses:
+        '200':
+          description: Deposit made
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          description: Not Found credit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/credits/{id_credit}/withdrawal:
+    post:
+      summary: Make a withdrawal from a credit
+      operationId: withdrawal
+      parameters:
+        - name: id_credit
+          in: path
+          required: true
+          description: ID del credit
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+      responses:
+        '200':
+          description: Withdrawal made
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          description: Not Found credit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/credits/{id_credit}/{id_client}/balances:
+    get:
+      summary: Get balances by credit and client
+      operationId: getBalancesByCreditAndClient
+      parameters:
+        - name: id_credit
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id_client
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Balances of credit and client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/credits/{id_credit}/{id_client}/transactions:
+    get:
+      summary: Get transactions by credit and client
+      operationId: getTransactionsByCreditAndClient
+      parameters:
+        - name: id_credit
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id_client
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transactions by credit and client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreditType:
+      type: string
+      enum:
+        - PERSONAL
+        - BUSINESS
+        - CARD
+    TransactionType:
+      type: string
+      enum:
+        - DEPOSIT
+        - WITHDRAWAL
+    Credit:
+      type: object
+      properties:
+        _id:
+          type: string
+        type:
+          $ref: '#/components/schemas/CreditType'
+        nroCredit:
+          type: string
+        creditLimit:
+          type: number
+        currentBalance:
+          type: number
+        openingDate:
+          type: string
+          format: date
+        clientId:
+          type: string
+        holders:
+          type: array
+          items:
+            type: string
+        authorizedSigners:
+          type: array
+          items:
+            type: string
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+    CreditRequest:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/CreditType'
+        nroCredit:
+          type: string
+        creditLimit:
+          type: number
+        currentBalance:
+          type: number
+        openingDate:
+          type: string
+          format: date
+        clientId:
+          type: string
+      required:
+        - type
+        - nroCredit
+        - creditLimit
+        - clientId
+    CreditResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+        nroCredit:
+          type: string
+        type:
+          $ref: '#/components/schemas/CreditType'
+        creditLimit:
+          type: number
+        currentBalance:
+          type: number
+        openingDate:
+          type: string
+          format: date
+        clientId:
+          type: string
+        holders:
+          type: array
+          items:
+            type: string
+        authorizedSigners:
+          type: array
+          items:
+            type: string
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+    Transaction:
+      type: object
+      properties:
+        clientId:
+          type: string
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        amount:
+          type: number
+        date:
+          type: string
+          format: date
+        motive:
+          type: string
+    TransactionRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+        tipo:
+          $ref: '#/components/schemas/TransactionType'
+      required:
+        - amount
+    TransactionResponse:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TransactionType'
+        amount:
+          type: number
+        date:
+          type: string
+          format: date
+        motive:
+          type: string
+    BalanceResponse:
+      type: object
+      properties:
+        clientId:
+          type: string
+        typeCredit:
+          $ref: '#/components/schemas/CreditType'
+        nroCredit:
+          type: string
+        balanceCredit:
+          type: number
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
