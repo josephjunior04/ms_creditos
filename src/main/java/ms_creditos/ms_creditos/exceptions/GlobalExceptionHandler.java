@@ -10,8 +10,12 @@ import com.ms_creditos.model.ErrorResponse;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * @param ex Custom Excepcion Credit not found
+     * @return Response Entity of Error Response with HttpStatus
+     */
     @ExceptionHandler(CreditNotFoundExcepction.class)
-    public ResponseEntity<ErrorResponse> handleCreditNotFoundException(CreditNotFoundExcepction ex) {
+    public ResponseEntity<ErrorResponse> handleCreditNotFoundException(final CreditNotFoundExcepction ex) {
         ErrorResponse errorResponse = new ErrorResponse();
         errorResponse.setError("Cuenta not found");
         errorResponse.setMessage(ex.getMessage());

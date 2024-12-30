@@ -16,7 +16,7 @@ public interface CreditService {
     Mono<CreditResponse> update(String id, CreditRequest creditRequest);
     Mono<Void> deleteById(String id);
     Mono<TransactionResponse> deposit(String id, TransactionRequest transactionRequest);
-    Mono<TransactionResponse> withdrawal(String id, TransactionRequest transactionRequest);
-    Flux<TransactionResponse> getTransactionsByCreditAndClient(String idCredit, String idClient);
-    Mono<BalanceResponse> getBalancesByCreditAndClient(String idCredit, String idClient);
+    Mono<TransactionResponse> withdraw(String id, TransactionRequest transactionRequest);
+    Flux<TransactionResponse> getTransactionsByCredit(String idCredit);
+    Mono<BalanceResponse> getBalancesByCredit(String idCredit);
 }

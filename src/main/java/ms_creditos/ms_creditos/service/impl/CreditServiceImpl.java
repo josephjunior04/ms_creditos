@@ -1,5 +1,6 @@
 package ms_creditos.ms_creditos.service.impl;
 
+import java.time.LocalDate;
 import java.util.Collections;
 
 import org.springframework.stereotype.Service;
@@ -8,42 +9,62 @@ import com.ms_creditos.model.BalanceResponse;
 import com.ms_creditos.model.Credit;
 import com.ms_creditos.model.CreditRequest;
 import com.ms_creditos.model.CreditResponse;
+import com.ms_creditos.model.Transaction;
 import com.ms_creditos.model.TransactionRequest;
 import com.ms_creditos.model.TransactionResponse;
+import com.ms_creditos.model.TransactionType;
 
 import lombok.RequiredArgsConstructor;
 import ms_creditos.ms_creditos.exceptions.CreditNotFoundExcepction;
 import ms_creditos.ms_creditos.repository.CreditRepository;
+import ms_creditos.ms_creditos.repository.TransactionRepository;
 import ms_creditos.ms_creditos.service.CreditService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
-public class CreditServiceImpl implements CreditService{
+public class CreditServiceImpl implements CreditService {
 
     private final CreditRepository creditRepository;
+    private final TransactionRepository transactionRepository;
 
+    /**
+     * @return Flux Credit response to all credits
+     */
     @Override
     public Flux<CreditResponse> findAll() {
         return creditRepository.findAll().map(this::toResponseFromEntity);
     }
 
+    /**
+     * @param id Credit Id to search
+     * @return Mono Credit response to seach
+     */
     @Override
-    public Mono<CreditResponse> findById(String id) {
+    public Mono<CreditResponse> findById(final String id) {
         return creditRepository.findById(id)
         .switchIfEmpty(Mono
                 .error(new CreditNotFoundExcepction("Credit with ID " + id + " not found")))
         .map(this::toResponseFromEntity);
     }
 
+    /**
+     * @param creditRequest Credit request to saved
+     * @return Mono Credit response to saved
+     */
     @Override
-    public Mono<CreditResponse> insert(CreditRequest creditRequest) {
+    public Mono<CreditResponse> insert(final CreditRequest creditRequest) {
         return creditRepository.save(toEntityFromRequest(creditRequest)).map(this::toResponseFromEntity);
     }
 
+    /**
+     * @param id Current id credit to update
+     * @param creditRequest Credit request to update
+     * @return Mono Credit response to update
+     */
     @Override
-    public Mono<CreditResponse> update(String id, CreditRequest creditRequest) {
+    public Mono<CreditResponse> update(final String id, final CreditRequest creditRequest) {
         return creditRepository.findById(id)
                 .flatMap(creditEntity -> {
                     creditEntity.setClientId(creditRequest.getClientId());
@@ -58,8 +79,12 @@ public class CreditServiceImpl implements CreditService{
                 .map(this::toResponseFromEntity);
     }
 
+    /**
+     * @param id Current id credit to delete
+     * @return Mono void response to delete
+     */
     @Override
-    public Mono<Void> deleteById(String id) {
+    public Mono<Void> deleteById(final String id) {
         return creditRepository.findById(id)
                 .switchIfEmpty(Mono.error(new CreditNotFoundExcepction("Credit with ID " + id + " not found")))
                 .flatMap(creditEntity -> {
@@ -67,31 +92,79 @@ public class CreditServiceImpl implements CreditService{
                 });
     }
 
+    /**
+     * @param id Current id credit to deposit
+     * @param transactionRequest Transaction request to deposit
+     * @return Mono Transaction response to deposit
+     */
     @Override
-    public Mono<TransactionResponse> deposit(String id, TransactionRequest transactionRequest) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deposit'");
+    public Mono<TransactionResponse> deposit(final String id, final TransactionRequest transactionRequest) {
+        return transactionRepository
+                .save(toEntityFromRequestTransaction(transactionRequest, id, TransactionType.DEPOSIT))
+                .map(this::toResponseFromEntity);
     }
 
-    @Override
-    public Mono<TransactionResponse> withdrawal(String id, TransactionRequest transactionRequest) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'withdrawal'");
+    private Transaction toEntityFromRequestTransaction(
+        final TransactionRequest transactionRequest,
+        final String id, final TransactionType transactionType) {
+        Transaction transaction = new Transaction();
+        transaction.setProductId(id);
+        transaction.setAmount(transactionRequest.getAmount());
+        transaction.setDate(LocalDate.now());
+        transaction.setMotive(transactionRequest.getMotive());
+        transaction.setType(transactionType);
+        return transaction;
     }
 
-    @Override
-    public Flux<TransactionResponse> getTransactionsByCreditAndClient(String idCredit, String idClient) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTransactionsByCreditAndClient'");
+    private TransactionResponse toResponseFromEntity(final Transaction transaction) {
+        TransactionResponse transactionResponse = new TransactionResponse();
+        transactionResponse.setAmount(transaction.getAmount());
+        transactionResponse.setDate(transaction.getDate());
+        transactionResponse.setMotive(transaction.getMotive());
+        transactionResponse.setType(transaction.getType());
+        return transactionResponse;
     }
 
+    /**
+     * @param id Current id credit to withdraw
+     * @return Mono Transaction response to withdraw
+     */
     @Override
-    public Mono<BalanceResponse> getBalancesByCreditAndClient(String idCredit, String idClient) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBalancesByCreditAndClient'");
+    public Mono<TransactionResponse> withdraw(final String id, final TransactionRequest transactionRequest) {
+        return transactionRepository
+                .save(toEntityFromRequestTransaction(transactionRequest, id, TransactionType.WITHDRAWAL))
+                .map(this::toResponseFromEntity);
     }
 
-    private CreditResponse toResponseFromEntity(Credit credit) {
+    /**
+     * @param idCredit Current id account to search
+     * @return Flux Transaction response when has been account founded
+     */
+    @Override
+    public Flux<TransactionResponse> getTransactionsByCredit(final String idCredit) {
+        Flux<Transaction> transactionFlux = transactionRepository.findAllByProductId(idCredit);
+        return transactionFlux.map(this::toResponseFromEntity);
+    }
+
+    /**
+     * @param idCredit Current id account to search
+     * @return Mono Balance response when has been account founded
+     */
+    @Override
+    public Mono<BalanceResponse> getBalancesByCredit(final String idCredit) {
+        return creditRepository.findById(idCredit).map(this::toBalanceResponseFromCredit);
+    }
+
+    private BalanceResponse toBalanceResponseFromCredit(final Credit credit) {
+        BalanceResponse balanceResponse = new BalanceResponse();
+        balanceResponse.setProductId(credit.getId());
+        balanceResponse.setBalanceCredit(credit.getCurrentBalance());
+        balanceResponse.setNroCredit(credit.getNroCredit());
+        balanceResponse.setTypeCredit(credit.getType());
+        return balanceResponse;
+    }
+
+    private CreditResponse toResponseFromEntity(final Credit credit) {
         CreditResponse creditResponse = new CreditResponse();
         creditResponse.setCreditLimit(credit.getCreditLimit());
         creditResponse.setCurrentBalance(credit.getCurrentBalance());
@@ -106,7 +179,7 @@ public class CreditServiceImpl implements CreditService{
         return creditResponse;
     }
 
-    private Credit toEntityFromRequest(CreditRequest creditRequest) {
+    private Credit toEntityFromRequest(final CreditRequest creditRequest) {
         Credit credit = new Credit();
         credit.setClientId(creditRequest.getClientId());
         credit.setCreditLimit(creditRequest.getCreditLimit());

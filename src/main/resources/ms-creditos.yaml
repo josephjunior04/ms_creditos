@@ -175,10 +175,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /v1/credits/{id_credit}/withdrawal:
+  /v1/credits/{id_credit}/withdraw:
     post:
-      summary: Make a withdrawal from a credit
-      operationId: withdrawal
+      summary: Make a withdraw from a credit
+      operationId: withdraw
       parameters:
         - name: id_credit
           in: path
@@ -194,7 +194,7 @@ paths:
               $ref: '#/components/schemas/TransactionRequest'
       responses:
         '200':
-          description: Withdrawal made
+          description: Withdraw made
           content:
             application/json:
               schema:
@@ -211,24 +211,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /v1/credits/{id_credit}/{id_client}/balances:
+  /v1/credits/{id_credit}/balance:
     get:
-      summary: Get balances by credit and client
-      operationId: getBalancesByCreditAndClient
+      summary: Get balances by credit 
+      operationId: getBalancesByCredit
       parameters:
         - name: id_credit
           in: path
           required: true
           schema:
             type: string
-        - name: id_client
-          in: path
-          required: true
-          schema:
-            type: string
       responses:
         '200':
-          description: Balances of credit and client
+          description: Balances of credit
           content:
             application/json:
               schema:
@@ -245,28 +240,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /v1/credits/{id_credit}/{id_client}/transactions:
+  /v1/credits/{id_credit}/transactions:
     get:
-      summary: Get transactions by credit and client
-      operationId: getTransactionsByCreditAndClient
+      summary: Get transactions by credit
+      operationId: getTransactionsByCredit
       parameters:
         - name: id_credit
           in: path
           required: true
           schema:
             type: string
-        - name: id_client
-          in: path
-          required: true
-          schema:
-            type: string
       responses:
         '200':
-          description: Transactions by credit and client
+          description: Transactions by credit
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TransactionResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionResponse'
         '404':
           description: Not Found
           content:
@@ -377,7 +369,7 @@ components:
     Transaction:
       type: object
       properties:
-        clientId:
+        productId:
           type: string
         type:
           $ref: '#/components/schemas/TransactionType'
@@ -393,14 +385,15 @@ components:
       properties:
         amount:
           type: number
-        tipo:
-          $ref: '#/components/schemas/TransactionType'
+        motive:
+          type: string
       required:
         - amount
+        - type
     TransactionResponse:
       type: object
       properties:
-        tipo:
+        type:
           $ref: '#/components/schemas/TransactionType'
         amount:
           type: number
@@ -412,7 +405,7 @@ components:
     BalanceResponse:
       type: object
       properties:
-        clientId:
+        productId:
           type: string
         typeCredit:
           $ref: '#/components/schemas/CreditType'
