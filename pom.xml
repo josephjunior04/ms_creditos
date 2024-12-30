@@ -87,6 +87,15 @@
 	</dependencies>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.jacoco</groupId>
+					<artifactId>jacoco-maven-plugin</artifactId>
+					<version>0.8.8</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -111,6 +120,26 @@
 						</exclude>
 					</excludes>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.6.0</version>
+				<configuration>
+					<configLocation>checkstyle.xml</configLocation>
+					<excludeGeneratedSources>true</excludeGeneratedSources>
+					<suppressionsLocation>checkstyle-suppressions.xml</suppressionsLocation>
+					<excludes>
+						ms_creditos/ms_creditos/MsCreditosApplication.java
+					</excludes>
+				</configuration>
+				<executions>
+					<execution>
+					<goals>
+						<goal>check</goal>
+					</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.openapitools</groupId>
