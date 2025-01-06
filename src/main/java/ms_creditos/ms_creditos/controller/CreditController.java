@@ -11,6 +11,7 @@ import com.ms_creditos.api.V1Api;
 import com.ms_creditos.model.BalanceResponse;
 import com.ms_creditos.model.CreditRequest;
 import com.ms_creditos.model.CreditResponse;
+import com.ms_creditos.model.DebtResponse;
 import com.ms_creditos.model.TransactionRequest;
 import com.ms_creditos.model.TransactionResponse;
 
@@ -43,12 +44,12 @@ public class CreditController implements V1Api {
     public Mono<ResponseEntity<TransactionResponse>> deposit(final String idCredit,
             final @Valid Mono<TransactionRequest> transactionRequest, final ServerWebExchange exchange) {
         return transactionRequest
-            .flatMap(request -> creditService.deposit(idCredit, request)
-                    .map(creditResponse -> {
-                        return ResponseEntity
-                                .status(HttpStatus.CREATED)
-                                .body(creditResponse);
-                    }));
+                .flatMap(request -> creditService.deposit(idCredit, request)
+                        .map(creditResponse -> {
+                            return ResponseEntity
+                                    .status(HttpStatus.CREATED)
+                                    .body(creditResponse);
+                        }));
     }
 
     /**
@@ -91,7 +92,7 @@ public class CreditController implements V1Api {
 
     /**
      * @return Mono Response Entity of Credit response to update with status
-     * @param idCredit Current Id Account to update
+     * @param idCredit      Current Id Account to update
      * @param creditRequest Current Credit request to update
      */
     @Override
@@ -115,37 +116,55 @@ public class CreditController implements V1Api {
     public Mono<ResponseEntity<TransactionResponse>> withdraw(final String idCredit,
             final @Valid Mono<TransactionRequest> transactionRequest, final ServerWebExchange exchange) {
         return transactionRequest
-            .flatMap(request -> creditService.withdraw(idCredit, request)
-                    .map(creditResponse -> {
-                        return ResponseEntity
-                                .status(HttpStatus.CREATED)
-                                .body(creditResponse);
-                    }));
+                .flatMap(request -> creditService.withdraw(idCredit, request)
+                        .map(creditResponse -> {
+                            return ResponseEntity
+                                    .status(HttpStatus.CREATED)
+                                    .body(creditResponse);
+                        }));
     }
 
     /**
-     * @return Mono Response Entity of Flux of Transaction response to balances with status
+     * @return Mono Response Entity of Flux of Transaction response to balances with
+     *         status
      * @param idCredit Current Id Credit to search balances
      */
     @Override
     public Mono<ResponseEntity<BalanceResponse>> getBalancesByCredit(final String idCredit,
             final ServerWebExchange exchange) {
         return creditService.getBalancesByCredit(idCredit)
-            .map(creditResponse -> {
-                return ResponseEntity
-                        .status(HttpStatus.OK)
-                        .body(creditResponse);
-            });
+                .map(creditResponse -> {
+                    return ResponseEntity
+                            .status(HttpStatus.OK)
+                            .body(creditResponse);
+                });
     }
 
     /**
-     * @return Mono Response Entity of Flux of Transaction response to transactions with status
+     * @return Mono Response Entity of Flux of Transaction response to transactions
+     *         with status
      * @param idCredit Current Id credit to search transactions
      */
     @Override
     public Mono<ResponseEntity<Flux<TransactionResponse>>> getTransactionsByCredit(final String idCredit,
             final ServerWebExchange exchange) {
         return Mono.just(ResponseEntity.ok(creditService.getTransactionsByCredit(idCredit)));
+    }
+
+    /**
+     * @return Mono Response Entity of Flux of Transaction response to transactions
+     *         with status
+     * @param idCredit Current Id credit to search transactions
+     */
+    @Override
+    public Mono<ResponseEntity<DebtResponse>> overdueDebtsByClient(final String clientId,
+            final ServerWebExchange exchange) {
+        return creditService.getDebtsOverdue(clientId)
+                .map(creditResponse -> {
+                    return ResponseEntity
+                            .status(HttpStatus.OK)
+                            .body(creditResponse);
+                });
     }
 
 }

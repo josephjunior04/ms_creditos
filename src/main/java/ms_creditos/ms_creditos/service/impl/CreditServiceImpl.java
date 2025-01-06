@@ -2,19 +2,24 @@ package ms_creditos.ms_creditos.service.impl;
 
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.ms_creditos.model.BalanceResponse;
 import com.ms_creditos.model.Credit;
+import com.ms_creditos.model.CreditDetailResponse;
 import com.ms_creditos.model.CreditRequest;
 import com.ms_creditos.model.CreditResponse;
+import com.ms_creditos.model.DebtResponse;
 import com.ms_creditos.model.Transaction;
 import com.ms_creditos.model.TransactionRequest;
 import com.ms_creditos.model.TransactionResponse;
 import com.ms_creditos.model.TransactionType;
 
 import lombok.RequiredArgsConstructor;
+import ms_creditos.ms_creditos.client.ClientReactiveClient;
 import ms_creditos.ms_creditos.exceptions.CreditNotFoundExcepction;
 import ms_creditos.ms_creditos.repository.CreditRepository;
 import ms_creditos.ms_creditos.repository.TransactionRepository;
@@ -28,6 +33,7 @@ public class CreditServiceImpl implements CreditService {
 
     private final CreditRepository creditRepository;
     private final TransactionRepository transactionRepository;
+    private final ClientReactiveClient clientReactiveClient;
 
     /**
      * @return Flux Credit response to all credits
@@ -44,9 +50,8 @@ public class CreditServiceImpl implements CreditService {
     @Override
     public Mono<CreditResponse> findById(final String id) {
         return creditRepository.findById(id)
-        .switchIfEmpty(Mono
-                .error(new CreditNotFoundExcepction("Credit with ID " + id + " not found")))
-        .map(this::toResponseFromEntity);
+            .switchIfEmpty(Mono.error(new CreditNotFoundExcepction("Credit with ID " + id + " not found")))
+            .map(this::toResponseFromEntity);
     }
 
     /**
@@ -55,6 +60,7 @@ public class CreditServiceImpl implements CreditService {
      */
     @Override
     public Mono<CreditResponse> insert(final CreditRequest creditRequest) {
+        clientReactiveClient.findById(creditRequest.getClientId()).subscribe(System.out::println);
         return creditRepository.save(toEntityFromRequest(creditRequest)).map(this::toResponseFromEntity);
     }
 
@@ -173,7 +179,6 @@ public class CreditServiceImpl implements CreditService {
         creditResponse.setNroCredit(credit.getNroCredit());
         creditResponse.setOpeningDate(credit.getOpeningDate());
         creditResponse.setAuthorizedSigners(credit.getAuthorizedSigners());
-        creditResponse.setTransactions(credit.getTransactions());
         creditResponse.setType(credit.getType());
         creditResponse.setClientId(credit.getClientId());
         return creditResponse;
@@ -191,5 +196,32 @@ public class CreditServiceImpl implements CreditService {
         credit.setTransactions(Collections.emptyList());
         credit.setType(creditRequest.getType());
         return credit;
+    }
+
+    /**
+     * @param clientId Current id client to search debts overdue
+     * @return Mono Debt response by client
+     */
+    @Override
+    public Mono<DebtResponse> getDebtsOverdue(final String clientId) {
+        return creditRepository.findByClientId(clientId).collectList()
+                .map(credits -> {
+                    List<CreditDetailResponse> overdueDebts = credits.stream()
+                            .filter(credit -> credit.getCurrentBalance().compareTo(credit.getCreditLimit()) != 0
+                                           && credit.getExpirationDate().isBefore(LocalDate.now()))
+                            .map(credit -> {
+                                CreditDetailResponse detail = new CreditDetailResponse();
+                                detail.setCreditId(credit.getId());
+                                detail.setPendingAmount(credit.getCurrentBalance());
+                                detail.setDueDate(credit.getExpirationDate());
+                                return detail;
+                            })
+                            .collect(Collectors.toList());
+
+                    DebtResponse response = new DebtResponse();
+                    response.setHasDebt(!overdueDebts.isEmpty());
+                    response.setDebts(overdueDebts);
+                    return response;
+                });
     }
 }

@@ -271,7 +271,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+  /v1/credits/debts/overdue/{clientId}:
+    get:
+      summary: List Debts overdue by client
+      operationId: overdueDebtsByClient
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          description: ID of crediclient
+          schema:
+            type: string
+      responses:
+          '200':
+            description: List Debts overdue by client
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/DebtResponse'
 components:
   schemas:
     CreditType:
@@ -299,6 +316,9 @@ components:
         currentBalance:
           type: number
         openingDate:
+          type: string
+          format: date
+        expirationDate:
           type: string
           format: date
         clientId:
@@ -352,6 +372,9 @@ components:
         openingDate:
           type: string
           format: date
+        expirationDate:
+          type: string
+          format: date
         clientId:
           type: string
         holders:
@@ -362,10 +385,6 @@ components:
           type: array
           items:
             type: string
-        transactions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Transaction'
     Transaction:
       type: object
       properties:
@@ -420,3 +439,23 @@ components:
           type: string
         message:
           type: string
+    CreditDetailResponse:
+      type: object
+      properties:
+        creditId:
+          type: string
+        pendingAmount:
+          type: number
+        dueDate:
+          type: string
+          format: date
+    DebtResponse:
+      type: object
+      properties:
+        hasDebt:
+          type: boolean
+        debts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditDetailResponse'
+
