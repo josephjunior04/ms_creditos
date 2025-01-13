@@ -1,7 +1,7 @@
 package ms_creditos.ms_creditos.service.impl;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -12,18 +12,28 @@ import com.ms_creditos.model.Credit;
 import com.ms_creditos.model.CreditDetailResponse;
 import com.ms_creditos.model.CreditRequest;
 import com.ms_creditos.model.CreditResponse;
+import com.ms_creditos.model.CreditStatus;
+import com.ms_creditos.model.CreditType;
 import com.ms_creditos.model.DebtResponse;
+import com.ms_creditos.model.PaymentRequest;
+import com.ms_creditos.model.PaymentResponse;
+import com.ms_creditos.model.Quota;
+import com.ms_creditos.model.QuotaStatus;
 import com.ms_creditos.model.Transaction;
 import com.ms_creditos.model.TransactionRequest;
 import com.ms_creditos.model.TransactionResponse;
 import com.ms_creditos.model.TransactionType;
 
 import lombok.RequiredArgsConstructor;
-import ms_creditos.ms_creditos.client.ClientReactiveClient;
 import ms_creditos.ms_creditos.exceptions.CreditNotFoundExcepction;
+import ms_creditos.ms_creditos.exceptions.NoPendingQuotaException;
+import ms_creditos.ms_creditos.exceptions.QuotaAlreadyPaidException;
+import ms_creditos.ms_creditos.exceptions.QuotaPaymentOrderException;
 import ms_creditos.ms_creditos.repository.CreditRepository;
 import ms_creditos.ms_creditos.repository.TransactionRepository;
 import ms_creditos.ms_creditos.service.CreditService;
+import ms_creditos.ms_creditos.service.impl.strategy.CreditValidationStrategy;
+import ms_creditos.ms_creditos.service.impl.strategy.CreditValidationStrategyFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -33,7 +43,7 @@ public class CreditServiceImpl implements CreditService {
 
     private final CreditRepository creditRepository;
     private final TransactionRepository transactionRepository;
-    private final ClientReactiveClient clientReactiveClient;
+    private final CreditValidationStrategyFactory creditValidationStrategyFactory;
 
     /**
      * @return Flux Credit response to all credits
@@ -50,8 +60,8 @@ public class CreditServiceImpl implements CreditService {
     @Override
     public Mono<CreditResponse> findById(final String id) {
         return creditRepository.findById(id)
-            .switchIfEmpty(Mono.error(new CreditNotFoundExcepction("Credit with ID " + id + " not found")))
-            .map(this::toResponseFromEntity);
+                .switchIfEmpty(Mono.error(new CreditNotFoundExcepction("Credit with ID " + id + " not found")))
+                .map(this::toResponseFromEntity);
     }
 
     /**
@@ -60,12 +70,17 @@ public class CreditServiceImpl implements CreditService {
      */
     @Override
     public Mono<CreditResponse> insert(final CreditRequest creditRequest) {
-        clientReactiveClient.findById(creditRequest.getClientId()).subscribe(System.out::println);
-        return creditRepository.save(toEntityFromRequest(creditRequest)).map(this::toResponseFromEntity);
+        CreditType creditType = creditRequest.getType();
+
+        CreditValidationStrategy creditValidationStrategy = creditValidationStrategyFactory.getStrategy(creditType);
+
+        return creditValidationStrategy.validate(creditRequest)
+                .then(creditValidationStrategy.save(creditRequest))
+                .map(this::toResponseFromEntity);
     }
 
     /**
-     * @param id Current id credit to update
+     * @param id            Current id credit to update
      * @param creditRequest Credit request to update
      * @return Mono Credit response to update
      */
@@ -99,7 +114,7 @@ public class CreditServiceImpl implements CreditService {
     }
 
     /**
-     * @param id Current id credit to deposit
+     * @param id                 Current id credit to deposit
      * @param transactionRequest Transaction request to deposit
      * @return Mono Transaction response to deposit
      */
@@ -111,8 +126,8 @@ public class CreditServiceImpl implements CreditService {
     }
 
     private Transaction toEntityFromRequestTransaction(
-        final TransactionRequest transactionRequest,
-        final String id, final TransactionType transactionType) {
+            final TransactionRequest transactionRequest,
+            final String id, final TransactionType transactionType) {
         Transaction transaction = new Transaction();
         transaction.setProductId(id);
         transaction.setAmount(transactionRequest.getAmount());
@@ -175,27 +190,16 @@ public class CreditServiceImpl implements CreditService {
         creditResponse.setCreditLimit(credit.getCreditLimit());
         creditResponse.setCurrentBalance(credit.getCurrentBalance());
         creditResponse.setId(credit.getId());
-        creditResponse.setHolders(credit.getHolders());
         creditResponse.setNroCredit(credit.getNroCredit());
         creditResponse.setOpeningDate(credit.getOpeningDate());
-        creditResponse.setAuthorizedSigners(credit.getAuthorizedSigners());
         creditResponse.setType(credit.getType());
         creditResponse.setClientId(credit.getClientId());
+        creditResponse.setNumbersOfQuota(credit.getNumbersOfQuota());
+        creditResponse.setInterestRate(credit.getInterestRate());
+        creditResponse.setExpirationDate(credit.getExpirationDate());
+        creditResponse.setStatus(credit.getStatus());
+        creditResponse.setQuotas(credit.getQuotas());
         return creditResponse;
-    }
-
-    private Credit toEntityFromRequest(final CreditRequest creditRequest) {
-        Credit credit = new Credit();
-        credit.setClientId(creditRequest.getClientId());
-        credit.setCreditLimit(creditRequest.getCreditLimit());
-        credit.setCurrentBalance(creditRequest.getCurrentBalance());
-        credit.setNroCredit(creditRequest.getNroCredit());
-        credit.setOpeningDate(creditRequest.getOpeningDate());
-        credit.setAuthorizedSigners(Collections.emptyList());
-        credit.setHolders(Collections.emptyList());
-        credit.setTransactions(Collections.emptyList());
-        credit.setType(creditRequest.getType());
-        return credit;
     }
 
     /**
@@ -208,7 +212,7 @@ public class CreditServiceImpl implements CreditService {
                 .map(credits -> {
                     List<CreditDetailResponse> overdueDebts = credits.stream()
                             .filter(credit -> credit.getCurrentBalance().compareTo(credit.getCreditLimit()) != 0
-                                           && credit.getExpirationDate().isBefore(LocalDate.now()))
+                                    && credit.getExpirationDate().isBefore(LocalDate.now()))
                             .map(credit -> {
                                 CreditDetailResponse detail = new CreditDetailResponse();
                                 detail.setCreditId(credit.getId());
@@ -223,5 +227,90 @@ public class CreditServiceImpl implements CreditService {
                     response.setDebts(overdueDebts);
                     return response;
                 });
+    }
+
+    /**
+     * @param PaymentRequest request to process payment
+     * @return Mono Payment response by client
+     */
+    @Override
+    public Mono<PaymentResponse> payment(final PaymentRequest paymentRequest) {
+        return creditRepository.findById(paymentRequest.getCreditId())
+                .switchIfEmpty(Mono
+                        .error(new CreditNotFoundExcepction("Credit not found for ID: "
+                        + paymentRequest.getCreditId())))
+                .flatMap(credit -> processPayment(paymentRequest, credit))
+                .map(credit -> paymentRequestToResponse(paymentRequest));
+    }
+
+    private Mono<Credit> processPayment(final PaymentRequest paymentRequest, final Credit credit) {
+        int numberQuota = paymentRequest.getNumberQuota();
+        BigDecimal paymentAmount = paymentRequest.getAmount();
+
+        validateAllPreviousQuotasPaid(credit, numberQuota);
+        Quota currentQuota = findQuotaByNumber(credit, numberQuota);
+        validateQuotaIsPending(currentQuota);
+
+        applyPaymentToQuota(currentQuota, paymentAmount);
+        updateCreditBalance(credit, paymentRequest.getAmount());
+        updateCreditStatusIfPaid(credit);
+
+        return creditRepository.save(credit);
+    }
+
+    private void validateAllPreviousQuotasPaid(final Credit credit, final int numberQuota) {
+        boolean allPreviousQuotasPaid = credit.getQuotas().stream()
+                .filter(installment -> installment.getNumber() < numberQuota)
+                .allMatch(installment -> installment.getStatus() == QuotaStatus.PAID);
+
+        if (!allPreviousQuotasPaid) {
+            throw new QuotaPaymentOrderException(
+                    "All previous quotas must be paid before paying quota number: " + numberQuota);
+        }
+    }
+
+    private Quota findQuotaByNumber(final Credit credit, final int numberQuota) {
+        return credit.getQuotas().stream()
+                .filter(quota -> quota.getNumber() == numberQuota)
+                .findFirst()
+                .orElseThrow(() -> new NoPendingQuotaException(
+                        "Quota number " + numberQuota + " not found for credit ID: " + credit.getId()));
+    }
+
+    private void validateQuotaIsPending(final Quota quota) {
+        if (quota.getStatus() != QuotaStatus.PENDING) {
+            throw new QuotaAlreadyPaidException("Quota number " + quota.getNumber() + " has already been paid");
+        }
+    }
+
+    private void applyPaymentToQuota(final Quota quota, final BigDecimal paymentAmount) {
+        BigDecimal remainingAmount = quota.getAmount().subtract(paymentAmount);
+        if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            quota.setStatus(QuotaStatus.PAID);
+            quota.setAmount(BigDecimal.ZERO);
+        } else {
+            quota.setAmount(remainingAmount);
+        }
+        quota.setPaymentDate(LocalDate.now());
+    }
+
+    private void updateCreditBalance(final Credit credit, final BigDecimal paymentAmount) {
+        BigDecimal newBalance = credit.getCurrentBalance().subtract(paymentAmount);
+        credit.setCurrentBalance(newBalance);
+    }
+
+    private void updateCreditStatusIfPaid(final Credit credit) {
+        if (credit.getCurrentBalance().compareTo(BigDecimal.ZERO) <= 0) {
+            credit.setStatus(CreditStatus.PAID);
+        }
+    }
+
+    private PaymentResponse paymentRequestToResponse(final PaymentRequest paymentRequest) {
+        PaymentResponse paymentResponse = new PaymentResponse();
+        paymentResponse.setAmount(paymentRequest.getAmount());
+        paymentResponse.setNumberQuota(paymentRequest.getNumberQuota());
+        paymentResponse.setStatus(QuotaStatus.PAID);
+        paymentResponse.setPaymentDate(LocalDate.now());
+        return paymentResponse;
     }
 }

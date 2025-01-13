@@ -4,6 +4,8 @@ import com.ms_creditos.model.BalanceResponse;
 import com.ms_creditos.model.CreditRequest;
 import com.ms_creditos.model.CreditResponse;
 import com.ms_creditos.model.DebtResponse;
+import com.ms_creditos.model.PaymentRequest;
+import com.ms_creditos.model.PaymentResponse;
 import com.ms_creditos.model.TransactionRequest;
 import com.ms_creditos.model.TransactionResponse;
 
@@ -18,6 +20,7 @@ public interface CreditService {
     Mono<Void> deleteById(String id);
     Mono<TransactionResponse> deposit(String id, TransactionRequest transactionRequest);
     Mono<TransactionResponse> withdraw(String id, TransactionRequest transactionRequest);
+    Mono<PaymentResponse> payment(PaymentRequest paymentRequest);
     Flux<TransactionResponse> getTransactionsByCredit(String idCredit);
     Mono<BalanceResponse> getBalancesByCredit(String idCredit);
     Mono<DebtResponse> getDebtsOverdue(String clientId);
